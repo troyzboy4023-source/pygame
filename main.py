@@ -13,6 +13,11 @@ class Player:
     def __init__(self, x, y, tile_w, tile_h):
         self.tile_w = tile_w
         self.tile_h = tile_h
+        # Character size multiplier (change this value to make character bigger/smaller)
+        # 2.0 = twice as big, 1.5 = 50% bigger, etc.
+        self.size_multiplier = 3.0
+        self.render_w = int(tile_w * self.size_multiplier)
+        self.render_h = int(tile_h * self.size_multiplier)
         self.pixel_x = x * tile_w
         self.pixel_y = y * tile_h
         self.speed = 3
@@ -41,13 +46,13 @@ class Player:
                     img = pygame.image.load(os.path.join(
                         image_folder, f)).convert_alpha()
                     img = pygame.transform.scale(
-                        img, (self.tile_w, self.tile_h))
+                        img, (self.render_w, self.render_h))
                     frames.append(img)
                 except:
                     placeholder = pygame.Surface(
-                        (self.tile_w, self.tile_h), pygame.SRCALPHA)
+                        (self.render_w, self.render_h), pygame.SRCALPHA)
                     pygame.draw.rect(placeholder, (100, 150, 255),
-                                     (0, 0, self.tile_w, self.tile_h))
+                                     (0, 0, self.render_w, self.render_h))
                     frames.append(placeholder)
             self.animations[direction] = frames
 
@@ -102,9 +107,31 @@ class Player:
             self.frame_index = 0
             self.animation_counter = 0
 
-    def draw(self, surface):
+    def draw(self, surface, camera_x, camera_y):
         img = self.animations[self.current_direction][self.frame_index]
-        surface.blit(img, (self.pixel_x, self.pixel_y))
+        surface.blit(img, (self.pixel_x - camera_x, self.pixel_y - camera_y))
+
+
+# ------------------------------
+# Camera class
+# ------------------------------
+class Camera:
+    def __init__(self, screen_width, screen_height, map_width, map_height):
+        self.screen_width = screen_width
+        self.screen_height = screen_height
+        self.map_width = map_width
+        self.map_height = map_height
+        self.x = 0
+        self.y = 0
+
+    def update(self, target_x, target_y, target_width, target_height):
+        # Center camera on target
+        self.x = target_x + target_width // 2 - self.screen_width // 2
+        self.y = target_y + target_height // 2 - self.screen_height // 2
+
+        # Clamp camera to map boundaries
+        self.x = max(0, min(self.x, self.map_width - self.screen_width))
+        self.y = max(0, min(self.y, self.map_height - self.screen_height))
 
 
 # ------------------------------
@@ -136,12 +163,13 @@ class GameMap:
                             ))
         return rects
 
-    def draw(self, surface):
+    def draw(self, surface, camera_x, camera_y):
         for layer in self.tmx_data.visible_layers:
             if isinstance(layer, pytmx.TiledTileLayer):
                 for x, y, image in layer.tiles():
                     if image:
-                        surface.blit(image, (x*self.tile_w, y*self.tile_h))
+                        surface.blit(
+                            image, (x*self.tile_w - camera_x, y*self.tile_h - camera_y))
 
 
 # ------------------------------
@@ -150,8 +178,11 @@ class GameMap:
 class Game:
     def __init__(self, tmx_file):
         pygame.init()
-        self.screen = pygame.display.set_mode((500, 500))
-        pygame.display.set_caption("Tiled Map OOP")
+        self.screen_width = 800
+        self.screen_height = 800
+        self.screen = pygame.display.set_mode(
+            (self.screen_width, self.screen_height))
+        pygame.display.set_caption("Tiled Map OOP - Camera Follow")
         self.clock = pygame.time.Clock()
         self.running = True
 
@@ -160,6 +191,14 @@ class Game:
 
         # Player
         self.player = Player(5, 5, self.game_map.tile_w, self.game_map.tile_h)
+
+        # Camera
+        self.camera = Camera(
+            self.screen_width,
+            self.screen_height,
+            self.game_map.width * self.game_map.tile_w,
+            self.game_map.height * self.game_map.tile_h
+        )
 
     def handle_events(self):
         for event in pygame.event.get():
@@ -171,10 +210,18 @@ class Game:
         self.player.handle_input(
             keys, self.game_map.collision_rects, self.game_map.width, self.game_map.height)
 
+        # Update camera to follow player
+        self.camera.update(
+            self.player.pixel_x,
+            self.player.pixel_y,
+            self.player.tile_w,
+            self.player.tile_h
+        )
+
     def draw(self):
         self.screen.fill((0, 0, 0))
-        self.game_map.draw(self.screen)
-        self.player.draw(self.screen)
+        self.game_map.draw(self.screen, self.camera.x, self.camera.y)
+        self.player.draw(self.screen, self.camera.x, self.camera.y)
         pygame.display.flip()
 
     def run(self):
