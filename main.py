@@ -190,6 +190,6 @@ class Game:
 # Run
 # ------------------------------
 if __name__ == "__main__":
-    tmx_file = "winter_boss_room.tmx"
+    tmx_file = "boss_entrance_one.tmx"
     game = Game(tmx_file)
     game.run()
