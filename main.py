@@ -3,25 +3,41 @@ import pytmx
 from pytmx.util_pygame import load_pygame
 import os
 import sys
+import random
+from enum import Enum
 
-# ------------------------------
-# Player class
-# ------------------------------
+
+class State(Enum):
+    IDLE = 0
+    ATTACKING = 1
+    HURT = 2
+    DEAD = 3
 
 
 class Player:
     def __init__(self, x, y, tile_w, tile_h):
         self.tile_w = tile_w
         self.tile_h = tile_h
-        # Character size multiplier (change this value to make character bigger/smaller)
-        # 2.0 = twice as big, 1.5 = 50% bigger, etc.
-        self.size_multiplier = 3.0
+        self.size_multiplier = 1.0
         self.render_w = int(tile_w * self.size_multiplier)
         self.render_h = int(tile_h * self.size_multiplier)
         self.pixel_x = x * tile_w
         self.pixel_y = y * tile_h
-        self.speed = 3
+        self.speed = 1
         self.run_speed = 5
+
+        # Combat stats
+        self.max_health = 100
+        self.health = 100
+        self.max_stamina = 100
+        self.stamina = 100
+        self.stamina_regen = 0.3
+        self.attack_damage = 20
+        self.attack_cost = 25
+        self.attack_range = 80
+        self.attack_cooldown = 0
+        self.state = State.IDLE
+        self.hit_flash = 0
 
         # Animation
         self.animations = {'down': [], 'up': [], 'left': [], 'right': []}
@@ -34,8 +50,8 @@ class Player:
     def load_animations(self):
         image_folder = "image"
         frames_dict = {
-            'down': ["main_frontside.png", "main_frontside_left_walk.png", "main_frontside.png", "main_frontside_right_walk.png"],
-            'up': ["main_frontside.png", "main_backside_left_walk.png", "main_frontside.png", "main_backside_right_walk.png"],
+            'down': ["main_frontside_right_walk.png", "main_frontside_left_walk.png", "main_frontside_right_walk.png", "main_frontside_left_walk.png"],
+            'up': ["main_backside_left_walk.png", "main_backside_right_walk.png", "main_backside_left_walk.png", "main_backside_right_walk.png"],
             'left': ["main_leftside.png", "main_leftside_walk1.png", "main_leftside.png", "main_leftside_walk2.png"],
             'right': ["main_rightside.png", "main_rightside_walk1.png", "main_rightside.png", "main_rightside_walk2.png"]
         }
@@ -56,7 +72,59 @@ class Player:
                     frames.append(placeholder)
             self.animations[direction] = frames
 
+    def attack(self, enemies):
+        """Attempt to attack nearby enemies"""
+        if self.stamina >= self.attack_cost and self.attack_cooldown == 0 and self.state != State.DEAD:
+            self.stamina -= self.attack_cost
+            self.attack_cooldown = 30  # Cooldown frames
+
+            # Check for enemies in range
+            hit_any = False
+            for enemy in enemies:
+                if enemy.state != State.DEAD:
+                    distance = ((self.pixel_x - enemy.pixel_x)**2 +
+                                (self.pixel_y - enemy.pixel_y)**2)**0.5
+                    if distance <= self.attack_range:
+                        enemy.take_damage(self.attack_damage)
+                        hit_any = True
+
+            return hit_any
+        return False
+
+    def take_damage(self, damage):
+        """Take damage from enemy"""
+        if self.state != State.DEAD:
+            self.health -= damage
+            self.hit_flash = 10
+
+            if self.health <= 0:
+                self.health = 0
+                self.state = State.DEAD
+            else:
+                self.state = State.HURT
+
+    def update_combat(self):
+        """Update combat-related stats"""
+        # Regenerate stamina
+        if self.state != State.ATTACKING:
+            self.stamina = min(
+                self.max_stamina, self.stamina + self.stamina_regen)
+
+        # Update cooldowns
+        if self.attack_cooldown > 0:
+            self.attack_cooldown -= 1
+
+        if self.hit_flash > 0:
+            self.hit_flash -= 1
+
+        # Reset state if hurt
+        if self.state == State.HURT and self.hit_flash == 0:
+            self.state = State.IDLE
+
     def handle_input(self, keys, collision_rects, map_width, map_height):
+        if self.state == State.DEAD:
+            return
+
         current_speed = self.run_speed if (
             keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT]) else self.speed
         dx = dy = 0
@@ -109,12 +177,177 @@ class Player:
 
     def draw(self, surface, camera_x, camera_y):
         img = self.animations[self.current_direction][self.frame_index]
+
+        # Flash white when hit
+        if self.hit_flash > 0:
+            flash_img = img.copy()
+            flash_img.fill((255, 255, 255, 100),
+                           special_flags=pygame.BLEND_RGB_ADD)
+            surface.blit(flash_img, (self.pixel_x -
+                         camera_x, self.pixel_y - camera_y))
+        else:
+            surface.blit(img, (self.pixel_x - camera_x,
+                         self.pixel_y - camera_y))
+
+
+class Enemy:
+    def __init__(self, x, y, tile_w, tile_h, enemy_type='goblin'):
+        self.tile_w = tile_w
+        self.tile_h = tile_h
+        self.size_multiplier = 3.0
+        self.render_w = int(tile_w * self.size_multiplier)
+        self.render_h = int(tile_h * self.size_multiplier)
+        self.pixel_x = x * tile_w
+        self.pixel_y = y * tile_h
+        self.enemy_type = enemy_type
+
+        # Combat stats
+        if enemy_type == 'goblin':
+            self.max_health = 50
+            self.speed = 1.5
+            self.attack_damage = 10
+            self.attack_range = 60
+            self.color = (100, 200, 100)
+        elif enemy_type == 'orc':
+            self.max_health = 80
+            self.speed = 1.0
+            self.attack_damage = 15
+            self.attack_range = 70
+            self.color = (200, 100, 100)
+        else:  # skeleton
+            self.max_health = 40
+            self.speed = 2.0
+            self.attack_damage = 8
+            self.attack_range = 50
+            self.color = (200, 200, 200)
+
+        self.health = self.max_health
+        self.attack_cooldown = 0
+        self.state = State.IDLE
+        self.hit_flash = 0
+
+        # AI
+        self.detection_range = 200
+        self.wander_timer = 0
+        self.wander_direction = [0, 0]
+
+        # Animation
+        self.frame_index = 0
+        self.animation_counter = 0
+        self.create_sprite()
+
+    def create_sprite(self):
+        """Create a simple enemy sprite"""
+        self.image = pygame.Surface(
+            (self.render_w, self.render_h), pygame.SRCALPHA)
+        pygame.draw.ellipse(self.image, self.color,
+                            (10, 10, self.render_w-20, self.render_h-20))
+        pygame.draw.circle(self.image, self.color,
+                           (self.render_w//2, self.render_h//3), 15)
+        # Eyes
+        pygame.draw.circle(self.image, (255, 0, 0),
+                           (self.render_w//2 - 8, self.render_h//3 - 3), 4)
+        pygame.draw.circle(self.image, (255, 0, 0),
+                           (self.render_w//2 + 8, self.render_h//3 - 3), 4)
+
+    def take_damage(self, damage):
+        """Take damage"""
+        if self.state != State.DEAD:
+            self.health -= damage
+            self.hit_flash = 10
+
+            if self.health <= 0:
+                self.health = 0
+                self.state = State.DEAD
+            else:
+                self.state = State.HURT
+
+    def update(self, player, collision_rects, map_width, map_height):
+        """Update enemy AI and movement"""
+        if self.state == State.DEAD:
+            return
+
+        # Update combat state
+        if self.attack_cooldown > 0:
+            self.attack_cooldown -= 1
+        if self.hit_flash > 0:
+            self.hit_flash -= 1
+        if self.state == State.HURT and self.hit_flash == 0:
+            self.state = State.IDLE
+
+        # Check distance to player
+        distance = ((self.pixel_x - player.pixel_x)**2 +
+                    (self.pixel_y - player.pixel_y)**2)**0.5
+
+        if distance <= self.detection_range and player.state != State.DEAD:
+            # Chase player
+            dx = player.pixel_x - self.pixel_x
+            dy = player.pixel_y - self.pixel_y
+            length = (dx**2 + dy**2)**0.5
+
+            if length > 0:
+                dx = (dx / length) * self.speed
+                dy = (dy / length) * self.speed
+
+                # Try to move
+                new_rect = pygame.Rect(self.pixel_x + dx, self.pixel_y + dy,
+                                       self.tile_w, self.tile_h)
+                if not any(new_rect.colliderect(r) for r in collision_rects):
+                    self.pixel_x += dx
+                    self.pixel_y += dy
+
+            # Attack if in range
+            if distance <= self.attack_range and self.attack_cooldown == 0:
+                player.take_damage(self.attack_damage)
+                self.attack_cooldown = 60  # Attack cooldown
+        else:
+            # Wander
+            if self.wander_timer <= 0:
+                self.wander_timer = random.randint(60, 180)
+                self.wander_direction = [
+                    random.uniform(-1, 1), random.uniform(-1, 1)]
+            else:
+                self.wander_timer -= 1
+                dx = self.wander_direction[0] * self.speed * 0.5
+                dy = self.wander_direction[1] * self.speed * 0.5
+
+                new_rect = pygame.Rect(self.pixel_x + dx, self.pixel_y + dy,
+                                       self.tile_w, self.tile_h)
+                if not any(new_rect.colliderect(r) for r in collision_rects):
+                    if 0 <= new_rect.x <= map_width*self.tile_w and 0 <= new_rect.y <= map_height*self.tile_h:
+                        self.pixel_x += dx
+                        self.pixel_y += dy
+
+    def draw(self, surface, camera_x, camera_y):
+        """Draw enemy"""
+        img = self.image.copy()
+
+        # Flash when hit
+        if self.hit_flash > 0:
+            img.fill((255, 255, 255, 100), special_flags=pygame.BLEND_RGB_ADD)
+
+        # Fade out when dead
+        if self.state == State.DEAD:
+            img.set_alpha(100)
+
         surface.blit(img, (self.pixel_x - camera_x, self.pixel_y - camera_y))
 
+        # Draw health bar
+        if self.state != State.DEAD:
+            bar_width = self.render_w
+            bar_height = 5
+            bar_x = self.pixel_x - camera_x
+            bar_y = self.pixel_y - camera_y - 10
 
-# ------------------------------
-# Camera class
-# ------------------------------
+            # Background
+            pygame.draw.rect(surface, (100, 0, 0),
+                             (bar_x, bar_y, bar_width, bar_height))
+            # Health
+            health_width = int((self.health / self.max_health) * bar_width)
+            pygame.draw.rect(surface, (0, 255, 0),
+                             (bar_x, bar_y, health_width, bar_height))
+
+
 class Camera:
     def __init__(self, screen_width, screen_height, map_width, map_height):
         self.screen_width = screen_width
@@ -125,21 +358,26 @@ class Camera:
         self.y = 0
 
     def update(self, target_x, target_y, target_width, target_height):
-        # Center camera on target
         self.x = target_x + target_width // 2 - self.screen_width // 2
         self.y = target_y + target_height // 2 - self.screen_height // 2
-
-        # Clamp camera to map boundaries
         self.x = max(0, min(self.x, self.map_width - self.screen_width))
         self.y = max(0, min(self.y, self.map_height - self.screen_height))
 
+    def update_screen_size(self, screen_width, screen_height):
+        self.screen_width = screen_width
+        self.screen_height = screen_height
 
-# ------------------------------
-# Map class
-# ------------------------------
+
 class GameMap:
     def __init__(self, tmx_file):
-        self.tmx_data = load_pygame(tmx_file)
+        try:
+            self.tmx_data = load_pygame(tmx_file)
+        except (ValueError, FileNotFoundError) as e:
+            print(f"Error loading TMX file: {e}")
+            print(
+                "Make sure 'boss_room_angel.tmx' and its tileset images are in the correct directory.")
+            raise
+
         self.tile_w = self.tmx_data.tilewidth
         self.tile_h = self.tmx_data.tileheight
         self.width = self.tmx_data.width
@@ -148,13 +386,27 @@ class GameMap:
 
     def build_collision_rects(self):
         rects = []
+        try:
+            # Look for the collision layer
+            collision_layer = self.tmx_data.get_layer_by_name("collision")
+            if collision_layer and collision_layer.properties.get("blocked"):
+                for x, y, gid in collision_layer.tiles():
+                    if gid != 0:
+                        rects.append(pygame.Rect(
+                            x * self.tmx_data.tilewidth,
+                            y * self.tmx_data.tileheight,
+                            self.tmx_data.tilewidth,
+                            self.tmx_data.tileheight
+                        ))
+        except Exception as e:
+            print(f"Warning: Could not load collision layer: {e}")
+
+        # Alternative: Check all layers for blocked tiles
         for layer in self.tmx_data.visible_layers:
-            print(layer)
             if isinstance(layer, pytmx.TiledTileLayer):
-                for x, y, gid in layer.iter_data():
-                    layer = self.tmx_data.get_layer_by_name("rocks")
+                if layer.properties.get("blocked"):
                     for x, y, gid in layer.tiles():
-                        if gid != 0 and layer.properties.get("blocked"):
+                        if gid != 0:
                             rects.append(pygame.Rect(
                                 x * self.tmx_data.tilewidth,
                                 y * self.tmx_data.tileheight,
@@ -172,17 +424,44 @@ class GameMap:
                             image, (x*self.tile_w - camera_x, y*self.tile_h - camera_y))
 
 
-# ------------------------------
-# Game class
-# ------------------------------
+def draw_ui_bar(surface, x, y, w, h, value, max_value, color, bg_color, label):
+    """Draw a status bar with label"""
+    font = pygame.font.Font(None, 20)
+    label_surf = font.render(label, True, (255, 255, 255))
+    surface.blit(label_surf, (x, y - 18))
+
+    # Background
+    pygame.draw.rect(surface, bg_color, (x, y, w, h))
+    # Fill
+    fill_w = int((value / max_value) * w)
+    pygame.draw.rect(surface, color, (x, y, fill_w, h))
+    # Border
+    pygame.draw.rect(surface, (0, 0, 0), (x, y, w, h), 2)
+
+    # Text
+    text = font.render(f"{int(value)}/{int(max_value)}", True, (255, 255, 255))
+    text_rect = text.get_rect(center=(x + w//2, y + h//2))
+    surface.blit(text, text_rect)
+
+
 class Game:
-    def __init__(self, tmx_file):
+    def __init__(self, tmx_file, fullscreen=False):
         pygame.init()
-        self.screen_width = 800
-        self.screen_height = 800
-        self.screen = pygame.display.set_mode(
-            (self.screen_width, self.screen_height))
-        pygame.display.set_caption("Tiled Map OOP - Camera Follow")
+        self.default_width = 800
+        self.default_height = 600
+        self.fullscreen = fullscreen
+
+        if self.fullscreen:
+            self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+            self.screen_width = self.screen.get_width()
+            self.screen_height = self.screen.get_height()
+        else:
+            self.screen_width = self.default_width
+            self.screen_height = self.default_height
+            self.screen = pygame.display.set_mode(
+                (self.screen_width, self.screen_height))
+
+        pygame.display.set_caption("Medieval RPG - Press SPACE to Attack")
         self.clock = pygame.time.Clock()
         self.running = True
 
@@ -190,7 +469,17 @@ class Game:
         self.game_map = GameMap(tmx_file)
 
         # Player
-        self.player = Player(5, 5, self.game_map.tile_w, self.game_map.tile_h)
+        self.player = Player(10, 22, self.game_map.tile_w,
+                             self.game_map.tile_h)
+
+        # Enemies
+        self.enemies = [
+            Enemy(10, 10, self.game_map.tile_w,
+                  self.game_map.tile_h, 'goblin'),
+            Enemy(15, 8, self.game_map.tile_w, self.game_map.tile_h, 'orc'),
+            Enemy(8, 15, self.game_map.tile_w,
+                  self.game_map.tile_h, 'skeleton'),
+        ]
 
         # Camera
         self.camera = Camera(
@@ -200,17 +489,66 @@ class Game:
             self.game_map.height * self.game_map.tile_h
         )
 
+        # UI
+        self.font = pygame.font.Font(None, 24)
+        self.message = ""
+        self.message_timer = 0
+
+    def toggle_fullscreen(self):
+        self.fullscreen = not self.fullscreen
+
+        if self.fullscreen:
+            self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+            self.screen_width = self.screen.get_width()
+            self.screen_height = self.screen.get_height()
+        else:
+            self.screen_width = self.default_width
+            self.screen_height = self.default_height
+            self.screen = pygame.display.set_mode(
+                (self.screen_width, self.screen_height))
+
+        self.camera.update_screen_size(self.screen_width, self.screen_height)
+
     def handle_events(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_F11 or (event.key == pygame.K_RETURN and (pygame.key.get_mods() & pygame.KMOD_ALT)):
+                    self.toggle_fullscreen()
+                elif event.key == pygame.K_ESCAPE:
+                    if self.fullscreen:
+                        self.toggle_fullscreen()
+                    else:
+                        self.running = False
+                elif event.key == pygame.K_SPACE:
+                    # Attack
+                    if self.player.attack(self.enemies):
+                        self.message = "Hit!"
+                        self.message_timer = 30
+                    else:
+                        if self.player.stamina < self.player.attack_cost:
+                            self.message = "Not enough stamina!"
+                        elif self.player.attack_cooldown > 0:
+                            self.message = "Attack on cooldown!"
+                        else:
+                            self.message = "No enemy in range!"
+                        self.message_timer = 30
 
     def update(self):
         keys = pygame.key.get_pressed()
         self.player.handle_input(
             keys, self.game_map.collision_rects, self.game_map.width, self.game_map.height)
 
-        # Update camera to follow player
+        # Update player combat
+        self.player.update_combat()
+
+        # Update enemies
+        for enemy in self.enemies:
+            enemy.update(self.player, self.game_map.collision_rects,
+                         self.game_map.width, self.game_map.height)
+
+        # Update camera
         self.camera.update(
             self.player.pixel_x,
             self.player.pixel_y,
@@ -218,10 +556,47 @@ class Game:
             self.player.tile_h
         )
 
+        # Update message timer
+        if self.message_timer > 0:
+            self.message_timer -= 1
+
     def draw(self):
         self.screen.fill((0, 0, 0))
         self.game_map.draw(self.screen, self.camera.x, self.camera.y)
+
+        # Draw enemies
+        for enemy in self.enemies:
+            enemy.draw(self.screen, self.camera.x, self.camera.y)
+
+        # Draw player
         self.player.draw(self.screen, self.camera.x, self.camera.y)
+
+        # Draw UI
+        draw_ui_bar(self.screen, 10, 10, 200, 25, self.player.health,
+                    self.player.max_health, (46, 204, 113), (34, 139, 34), "Health")
+        draw_ui_bar(self.screen, 10, 50, 200, 20, self.player.stamina,
+                    self.player.max_stamina, (241, 196, 15), (150, 100, 0), "Stamina")
+
+        # Draw controls
+        controls = self.font.render(
+            "WASD/Arrows: Move | SHIFT: Run | SPACE: Attack", True, (255, 255, 255))
+        self.screen.blit(controls, (10, self.screen_height - 30))
+
+        # Draw message
+        if self.message_timer > 0:
+            msg_surf = self.font.render(self.message, True, (255, 255, 0))
+            self.screen.blit(msg_surf, (self.screen_width //
+                             2 - msg_surf.get_width() // 2, 100))
+
+        # Draw game over
+        if self.player.state == State.DEAD:
+            game_over_font = pygame.font.Font(None, 72)
+            game_over_surf = game_over_font.render(
+                "YOU DIED!", True, (255, 0, 0))
+            self.screen.blit(game_over_surf,
+                             (self.screen_width // 2 - game_over_surf.get_width() // 2,
+                              self.screen_height // 2))
+
         pygame.display.flip()
 
     def run(self):
@@ -229,14 +604,16 @@ class Game:
             self.handle_events()
             self.update()
             self.draw()
-            self.clock.tick(60)
+            self.clock.tick(100)
         pygame.quit()
 
 
-# ------------------------------
-# Run
-# ------------------------------
 if __name__ == "__main__":
-    tmx_file = "boss_entrance_one.tmx"
-    game = Game(tmx_file)
+    tmx_file = "winter_boss_room.tmx"
+
+    start_fullscreen = False
+    if len(sys.argv) > 1 and sys.argv[1].lower() in ['fullscreen', '-f', '--fullscreen']:
+        start_fullscreen = True
+
+    game = Game(tmx_file, fullscreen=start_fullscreen)
     game.run()
