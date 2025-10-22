@@ -48,7 +48,7 @@ class Player:
         self.load_animations()
 
     def load_animations(self):
-        image_folder = "image"
+        image_folder = "image"  # Player images are in 'image' folder
         frames_dict = {
             'down': ["main_frontside_right_walk.png", "main_frontside_left_walk.png", "main_frontside_right_walk.png", "main_frontside_left_walk.png"],
             'up': ["main_backside_left_walk.png", "main_backside_right_walk.png", "main_backside_left_walk.png", "main_backside_right_walk.png"],
@@ -375,7 +375,7 @@ class GameMap:
         except (ValueError, FileNotFoundError) as e:
             print(f"Error loading TMX file: {e}")
             print(
-                "Make sure 'boss_room_angel.tmx' and its tileset images are in the correct directory.")
+                "Make sure the TMX file and its tileset images are in the 'map' directory.")
             raise
 
         self.tile_w = self.tmx_data.tilewidth
@@ -608,12 +608,63 @@ class Game:
         pygame.quit()
 
 
+def find_tmx_file():
+    """Find the TMX file in common locations"""
+    # Possible locations to check
+    possible_paths = [
+        os.path.join("map", "winter_boss_room.tmx"),
+        os.path.join("map", "boss_room_angel.tmx"),
+        "winter_boss_room.tmx",
+        "boss_room_angel.tmx"
+    ]
+    
+    # Check if map folder exists and list its contents
+    if os.path.exists("map"):
+        print("Contents of 'map' folder:")
+        for file in os.listdir("map"):
+            if file.endswith('.tmx'):
+                print(f"  - {file}")
+                possible_paths.insert(0, os.path.join("map", file))
+    else:
+        print("'map' folder not found!")
+    
+    # Check current directory for TMX files
+    print("\nTMX files in current directory:")
+    for file in os.listdir("."):
+        if file.endswith('.tmx'):
+            print(f"  - {file}")
+            if file not in possible_paths:
+                possible_paths.insert(0, file)
+    
+    # Try each path
+    for path in possible_paths:
+        if os.path.exists(path):
+            print(f"\nUsing map file: {path}")
+            return path
+    
+    # If no file found
+    print("\nERROR: No TMX file found!")
+    print("Please ensure you have a .tmx file in either:")
+    print("  - The 'map' folder")
+    print("  - The current directory")
+    return None
+
+
 if __name__ == "__main__":
-    tmx_file = "winter_boss_room.tmx"
+    # Find the TMX file
+    tmx_file = find_tmx_file()
+    
+    if tmx_file is None:
+        print("\nPlease place your TMX map file in the 'map' folder or current directory.")
+        sys.exit(1)
 
     start_fullscreen = False
     if len(sys.argv) > 1 and sys.argv[1].lower() in ['fullscreen', '-f', '--fullscreen']:
         start_fullscreen = True
 
-    game = Game(tmx_file, fullscreen=start_fullscreen)
-    game.run()
+    try:
+        game = Game(tmx_file, fullscreen=start_fullscreen)
+        game.run()
+    except Exception as e:
+        print(f"\nError starting game: {e}")
+        sys.exit(1)
