@@ -4,7 +4,7 @@
   <export target="boss_1.tmx" format="tmx"/>
  </editorsettings>
  <tileset firstgid="1" name="boss_1" tilewidth="32" tileheight="32" tilecount="2304" columns="48">
-  <image source="../boss 1/boss_1.png" width="1536" height="1536"/>
+  <image source="./boss_1.png" width="1536" height="1536"/>
  </tileset>
  <tileset firstgid="2305" name="boss_1" tilewidth="32" tileheight="32" tilecount="2304" columns="48">
   <image source="../boss 1/boss_1.png" width="1536" height="1536"/>

@@ -1,12 +1,44 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="25" height="25" tilewidth="32" tileheight="32" infinite="0" nextlayerid="7" nextobjectid="1">
- <tileset firstgid="1" source="../layers/winter2-Photoroom.tsx"/>
- <tileset firstgid="346" source="../layers/winter1-Photoroom.tsx"/>
- <tileset firstgid="897" source="../layers/winter_statue-Photoroom.tsx"/>
- <tileset firstgid="1242" source="../layers/winter_path-Photoroom.tsx"/>
- <tileset firstgid="2282" source="../layers/wintertree-Photoroom.tsx"/>
- <tileset firstgid="3322" source="../layers/winter_rune-Photoroom.tsx"/>
- <tileset firstgid="3667" source="../layers/winter_ice-Photoroom.tsx"/>
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="25" height="25" tilewidth="32" tileheight="32" infinite="0" nextlayerid="8" nextobjectid="1">
+ <tileset firstgid="1" source="../../layers/winter2-Photoroom.tsx"/>
+ <tileset firstgid="346" source="../../layers/winter1-Photoroom.tsx"/>
+ <tileset firstgid="897" source="../../layers/winter_statue-Photoroom.tsx"/>
+ <tileset firstgid="1242" source="../../layers/winter_path-Photoroom.tsx"/>
+ <tileset firstgid="2282" source="../../layers/wintertree-Photoroom.tsx"/>
+ <tileset firstgid="3322" source="../../layers/winter_rune-Photoroom.tsx"/>
+ <tileset firstgid="3667" source="../../layers/winter_ice-Photoroom.tsx"/>
+ <layer id="7" name="collision" width="25" height="25">
+  <properties>
+   <property name="blocked" type="bool" value="true"/>
+  </properties>
+  <data encoding="csv">
+302,302,302,302,302,302,302,302,302,302,302,302,302,302,302,302,302,302,302,302,302,302,302,302,302,
+302,302,302,302,302,302,302,302,302,302,302,302,302,302,302,302,302,302,302,302,302,302,302,302,302,
+302,302,302,302,302,302,302,302,302,302,302,302,302,302,302,302,302,302,302,302,302,302,302,302,302,
+302,302,302,94,0,94,94,0,0,94,94,94,0,0,94,94,0,94,94,94,94,0,0,302,302,
+302,302,302,94,0,0,0,0,0,0,0,0,0,0,0,0,0,94,94,94,94,0,0,0,302,
+94,94,94,94,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,302,
+94,302,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,302,
+94,302,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,302,302,
+94,302,302,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,302,302,
+302,302,302,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,302,
+302,302,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,49,302,302,302,
+302,302,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,49,302,302,302,
+302,302,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,49,302,302,302,
+302,302,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,49,302,302,302,
+302,302,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+302,302,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+302,302,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+302,302,0,94,94,94,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,302,302,
+302,302,302,94,302,94,0,0,0,0,0,0,0,0,0,0,0,0,0,49,0,49,302,302,302,
+302,302,302,302,302,302,0,0,0,0,0,0,0,0,0,0,0,0,0,49,302,302,302,302,302,
+302,302,302,302,302,302,0,0,0,0,0,0,0,0,0,0,0,0,0,49,302,302,302,302,302,
+302,302,302,302,302,302,302,302,302,0,0,0,0,0,0,0,0,49,49,302,302,302,302,302,302,
+302,302,302,302,302,302,302,302,302,0,0,0,0,0,0,0,49,49,302,302,302,302,302,302,302,
+302,302,302,302,302,302,302,302,0,0,0,0,0,0,0,0,0,302,302,302,302,302,302,302,302,
+302,302,302,302,302,302,302,302,302,302,0,0,0,0,49,49,49,302,302,302,302,302,302,302,302
+</data>
+ </layer>
  <layer id="3" name="path" width="25" height="25">
   <data encoding="csv">
 2125,2126,2125,2126,2125,2126,2125,2126,2125,2126,2125,2126,2125,2126,2125,2126,2125,2126,2125,2126,2125,2125,2126,2125,2126,
@@ -66,9 +98,6 @@
 </data>
  </layer>
  <layer id="4" name="rocks" width="25" height="25">
-  <properties>
-   <property name="blocked" type="bool" value="true"/>
-  </properties>
   <data encoding="csv">
 2019,2020,2021,2022,2023,2019,2020,2021,2022,2023,2024,2025,2026,2027,2019,2020,2021,2022,2023,2024,2098,2009,2009,2010,2102,
 2059,0,0,0,0,0,0,0,3491,3492,3493,3494,0,0,0,0,0,0,0,0,0,2139,2140,2141,2142,
@@ -98,9 +127,6 @@
 </data>
  </layer>
  <layer id="5" name="statue" width="25" height="25">
-  <properties>
-   <property name="blocked" type="bool" value="true"/>
-  </properties>
   <data encoding="csv">
 1007,1008,1009,1010,1011,2010,2011,2012,2013,2007,2008,2009,2010,2011,2012,2013,2005,2006,2007,2008,2009,935,936,937,2013,
 1030,1031,1032,1033,1034,2858,2859,2860,2861,3492,3493,3494,3495,2877,2878,2879,2880,531,532,533,534,958,959,960,0,
