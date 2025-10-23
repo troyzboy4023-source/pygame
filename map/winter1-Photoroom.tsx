@@ -1,4 +1,0 @@
-<?xml version='1.0' encoding='utf-8'?>
-<tileset version="1.10" tiledversion="1.11.2" name="winter1-Photoroom" tilewidth="32" tileheight="32" tilecount="551" columns="29">
- <image source="C:\Users\baysa\OneDrive\Desktop\pygame\map\winter1-Photoroom.png" width="948" height="632" />
-</tileset>
